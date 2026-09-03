@@ -31,8 +31,6 @@ function getStatus() {
     return connectionStatus;
 }
 
-// Détruit proprement la connexion courante et réinitialise l'état, pour ne
-// jamais rester bloqué après un échec/timeout/déconnexion.
 async function resetSock() {
     const stale = sock;
     sock = null;
@@ -109,9 +107,6 @@ function wireEvents(sockInstance, { onOpen, onClose } = {}) {
         for (const m of messages) {
             if (!m.message) continue;
             const isSelfChat = m.key.remoteJid === sockInstance.user?.id?.split(':')[0] + '@s.whatsapp.net';
-            // On ignore les messages sortants normaux (envoyés par le bot ou
-            // depuis le téléphone à quelqu'un d'autre) — sauf le cas particulier
-            // de la conversation "avec soi-même", où fromMe est toujours vrai.
             if (m.key.fromMe && !isSelfChat) continue;
             try {
                 await applyAutoBehaviors(sockInstance, m);
@@ -183,7 +178,7 @@ function wrapSendMessage(sockInstance) {
                 await sockInstance.presenceSubscribe(jid);
                 await sockInstance.sendPresenceUpdate('composing', jid);
                 const length = content.text.length;
-                const delay = Math.min(4500, 500 + length * 20 + Math.random() * 700);
+                const delay = Math.min(5000, 500 + length * 20 + Math.random() * 700);
                 await new Promise((r) => setTimeout(r, delay));
                 await sockInstance.sendPresenceUpdate('paused', jid);
             } catch (_) {}
@@ -311,8 +306,6 @@ async function startExistingSession() {
 }
 
 async function resumeIfSessionExists() {
-    // Priorité : SESSION_ID (variable d'environnement) si le dossier local est vide
-    // (cas d'un redémarrage sur Render sans disque persistant).
     if (process.env.SESSION_ID && !fs.existsSync(path.join(SESSION_PATH, 'creds.json'))) {
         if (!fs.existsSync(SESSION_PATH)) fs.mkdirSync(SESSION_PATH, { recursive: true });
         restoreSession(SESSION_PATH, process.env.SESSION_ID);
